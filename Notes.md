@@ -126,7 +126,7 @@
 - CO, NH3, NOx Measurement - MiCS6814
 - O3 Measurement - MQ-131
 
-### Pro
+### Connect
 - ESP32-DevKitC-V4
 - RTC - DS3231
 - Touch Screen - Nextion NX4827P043
