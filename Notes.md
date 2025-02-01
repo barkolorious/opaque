@@ -18,8 +18,8 @@
 
 - [ ] sps30 karşılaştırma testi
 - [ ] hastalar işe gitsin trafiğe çıksın
-- [ ] en şart ölçümleri soru ve sıklığı sor
-- [ ] butonu sor
+- [X] en şart ölçümleri soru ve sıklığı sor
+- [X] butonu sor
 - [x] 3 x 5 gün
 - [x] ivme ölçer 
 - [x] diğeri kadar büyük olabilir
@@ -34,8 +34,8 @@
 - veri toplama ve analizi (bölgesel), 
 - Doktora destek çünkü SD kart veri topluyor ve doktora verebilirsin.
 
-**OPAQUE**: **O**pen-source **P**ortable **A**ir **Q**uality **U**nit & **E**valuator
-![[logo.png]]
+**OPAQUE**: **O**pen-source **P**ortable **A**ir **QU**ality **E**quipment
+![[assets/logo.png]]
 
 ## EgeSAM
 - https://polenalerji.ege.edu.tr
@@ -106,16 +106,86 @@
 	- https://www.robotistan.com/mics-6814-hava-kalitesi-co-no2-nh3-azot-karbon-gaz-sensoru-modulu
 	- https://www.sgxsensortech.com/content/uploads/2015/02/1143_Datasheet-MiCS-6814-rev-8.pdf
 - ADS1115:
-	- ![[Pasted image 20241123235145.png]]
+	- ![[assets/Pasted image 20241123235145.png]]
 	- https://how2electronics.com/how-to-use-ads1115-16-bit-adc-module-with-esp32/
 	- https://arduino.stackexchange.com/questions/53899/ads1115-measuring-5v-voltages-and-powering-with-3-3v
-- https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch.pdf
+- ESC32-DevKitC-V4
+	- https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch.pdf
+
 ## Current Components
 
-#### Lite
-- RTC
-- Gyro
-- SD 
-- GPS
+### Lite
+- ESP32-DevKitC-V4
+- RTC - DS3231
+- OLED Screen - SSD1306
+- Gyro - MPU6050
+- µSD Card
+- GPS - NEO-6M
+- Temperature, Humidity Measurement - ENS210
+- AQI, tVOC, eCO2 Measurement - ENS160
+- CO, NH3, NOx Measurement - MiCS6814
+- O3 Measurement - MQ-131
 
-#### Pro
+### Pro
+- ESP32-DevKitC-V4
+- RTC - DS3231
+- Touch Screen - Nextion NX4827P043
+- Gyro - MPU6050
+- µSD Card
+- Mobile Data - SIM800C
+- GPS - NEO-6M
+- Temperature, Humidity Measurement - ENS210
+- AQI, tVOC, eCO2 Measurement - ENS160
+- CO, NH3, NOx Measurement - MiCS6814
+- O3 Measurement - MQ-131
+
+---
+
+![[assets/Pasted image 20241114225116.png]]
+![[assets/Pasted image 20241116133241.png]]
+
+- ESP32 + SSD1306: 
+	- https://lastminuteengineers.com/oled-display-esp32-tutorial/
+- ESP32 + SD Card ( + [Data logging](https://randomnerdtutorials.com/esp32-microsd-card-arduino/#webserversdcard)): 
+	- https://www.electronicwings.com/esp32/microsd-card-interfacing-with-esp32
+	- https://randomnerdtutorials.com/esp32-microsd-card-arduino/
+- ESP32 + SSD1306 + DS3231:
+	- https://microcontrollerslab.com/esp32-ds3231-real-time-clock-rtc-oled/
+- ESP32 + MPU6050:
+	- https://randomnerdtutorials.com/esp32-mpu-6050-accelerometer-gyroscope-arduino/
+- ESP32 Analog Input:
+	- https://randomnerdtutorials.com/esp32-adc-analog-read-arduino-ide/
+- ESP32 + Firebase:
+	- https://randomnerdtutorials.com/esp32-firebase-web-app/
+- ESP32 + SIM800C:
+	- https://community.thinger.io/t/esp32-sim800c/676/3
+- ESP32 + SIM800L:
+	- https://randomnerdtutorials.com/esp32-cloud-mqtt-broker-sim800l/
+	- https://circuitdigest.com/microcontroller-projects/interfacing-sim800l-module-with-esp32
+- ESP32 + NEO-6M:
+	- https://randomnerdtutorials.com/esp32-neo-6m-gps-module-arduino/
+- ESP32 I<sup>2</sup>C Pull-up: 
+	- https://electronics.stackexchange.com/questions/602404/esp32-i2c-circuit
+	> Most sensors we use in our projects are breakout boards that already have the resistors built-in. So, usually, when you’re dealing with this type of electronics components you don’t need to worry about this.
+	> - https://randomnerdtutorials.com/esp32-i2c-communication-arduino-ide/
+- PM7003:
+	- https://registry.platformio.org/libraries/avaldebe/PMSerial
+	- https://github.com/avaldebe/PMserial
+	- https://github.com/Ptelka/PMS7003
+- MICS6814
+	- https://forum.arduino.cc/t/cjmcu-6814-readings-into-ppm/1257495/5
+	- https://store.siqma.com/mics-6814-air-quality-sensor-module.html
+		- https://www.youtube.com/watch?v=ByzoAjvoX58
+			- https://github.com/noorkhokhar99/MICS6814/tree/master
+	- https://github.com/Seeed-Studio/Mutichannel_Gas_Sensor
+	- maybe you forgot pullup-resistors? Do you use the MiCS-6814 on the purple adapter board CJMCU6814? Then you may add an eg 47k ohm resistor from the analog Input (A1 in your sketch) to Vcc (5V or 3,3 V, depends on your arduino). Then you should get other measurment than the 0-values.  BTW: the sensor needs some time to heat up. And I'm not sure about it's stability over time. I've no experience with it yet.
+	- https://kstobbe.dk/2019/02/16/esp32-pms5003-bme280-mics6814-sensor-build/
+	- https://forum.arduino.cc/t/cjmcu-6814-adapter-board-with-mics-6814-co-nh3-no2-sensor/595612/14
+	- https://forum.arduino.cc/t/mics-6814-cjmcu-6814-gas-sensor-reading-conversion/992844
+	- https://forum.arduino.cc/t/mics-6814-integrated-on-a-board-with-esp-wroom-32d-v_rs-reads-2-98-v-of-3-3/699348
+	- https://forum.arduino.cc/t/cjmcu-6814-readings-into-ppm/1348009
+	- ![[assets/assets/Pasted image 20250128162927.png]]
+- MQ-131
+	- https://github.com/ostaquet/Arduino-MQ131-driver
+	- https://www.graphreader.com/v2
+	- https://www.winsen-sensor.com/d/files/manual/mq131-h.pdf
