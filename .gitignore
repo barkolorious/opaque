@@ -1,2 +1,2 @@
 # Ignore Obsidian's directory because it is not needed in the repo.
-.obsidian
+.obsidian/
