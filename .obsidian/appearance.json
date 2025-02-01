@@ -1,0 +1,14 @@
+{
+  "accentColor": "#80b9ae",
+  "cssTheme": "Primary",
+  "interfaceFontFamily": "Nexa",
+  "textFontFamily": "Inter",
+  "monospaceFontFamily": "IBM Plex Mono",
+  "nativeMenus": false,
+  "baseFontSize": 21,
+  "baseFontSizeAction": true,
+  "enabledCssSnippets": [
+    "newSnippet"
+  ],
+  "theme": "obsidian"
+}

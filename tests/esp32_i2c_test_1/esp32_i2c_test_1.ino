@@ -1,0 +1,284 @@
+/*
+╔═════════╤════════╤════════╤════════╤═════════╤════════╗
+║ SSD1306 │ DS3231 │ ENS160 │ ENS210 │ MPU6050 │ ESP32  ║
+╠═════════╪════════╪════════╪════════╪═════════╪════════╣
+║ GND     │ GND    │ GND    │ GND    │ GND     │ GND    ║
+║ VCC     │ VCC    │ VCC    │ VCC    │ VCC     │ 5V     ║
+║ SDA     │ SDA    │ SDA    │ SDA    │ SDA     │ GPIO21 ║
+║ SCL     │ SCL    │ SCL    │ SCL    │ SCL     │ GPIO22 ║
+╚═════════╧════════╧════════╧════════╧═════════╧════════╝
+*/
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "ens210.h"
+#include "SparkFun_ENS160.h"
+#include <MPU6050_light.h>
+#include <RTClib.h>
+
+#define SSD1306_SCREEN_WIDTH     128
+#define SSD1306_SCREEN_HEIGHT    64
+#define SSD1306_OLED_RESET       -1
+#define SSD1306_SCREEN_ADDRESS   0x3C
+#define SSD1306_LOGO_O_HEIGHT    10
+#define SSD1306_LOGO_O_WIDTH     20
+#define MPU6050_DETECT_THRESHOLD 1.2
+
+char daysOfTheWeek[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+char monthsOfTheYear[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+const unsigned char logo_opaque [] PROGMEM = {
+	0x7f, 0xff, 0xe3, 0xff, 0xff, 0x1f, 0xff, 0xf8, 0xff, 0xff, 0xcc, 0x00, 0x03, 0x3f, 0xff, 0xf0, 
+	0xff, 0xff, 0xf7, 0xff, 0xff, 0xbf, 0xff, 0xfd, 0xff, 0xff, 0xec, 0x00, 0x03, 0x7f, 0xff, 0xf8, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0x80, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0x80, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0x9f, 0xff, 0xfd, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x7f, 0xff, 0xf8, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xbf, 0xff, 0xfd, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x7f, 0xff, 0xf0, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x00, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x00, 
+	0xff, 0xff, 0xf7, 0xff, 0xff, 0xbf, 0xff, 0xfd, 0xff, 0xff, 0xef, 0xff, 0xff, 0x7f, 0xff, 0xf8, 
+	0x7f, 0xff, 0xe7, 0xff, 0xff, 0x1f, 0xff, 0xf8, 0xff, 0xff, 0xe7, 0xff, 0xfe, 0x3f, 0xff, 0xf0, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+const unsigned char logo_opaque_frame0 [] PROGMEM = {
+	0x7f, 0xff, 0xe3, 0xff, 0xff, 0x00, 0x0f, 0xf8, 0xff, 0xff, 0xc7, 0xc0, 0x3e, 0x3f, 0xff, 0xf0, 
+	0xff, 0xff, 0xf7, 0xff, 0xff, 0x80, 0x1f, 0xfd, 0xff, 0xff, 0xef, 0xc0, 0x3f, 0x7f, 0xff, 0xf8, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0x9f, 0xff, 0xfd, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xbf, 0xff, 0xfd, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x60, 0x00, 0x18, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x7f, 0xff, 0xf8, 
+	0xc0, 0x00, 0x36, 0x00, 0x01, 0xb0, 0x00, 0x0d, 0x80, 0x00, 0x6c, 0x00, 0x03, 0x7f, 0xff, 0xf0, 
+	0xff, 0xff, 0xf7, 0xff, 0xff, 0xbf, 0xff, 0xfd, 0xff, 0xff, 0xef, 0xff, 0xff, 0x7f, 0xf0, 0x00, 
+	0x7f, 0xff, 0xe7, 0xff, 0xff, 0x1f, 0xff, 0xf8, 0xff, 0xff, 0xe7, 0xff, 0xfe, 0x3f, 0xe0, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+const unsigned char logo_o [] PROGMEM = {
+	0x7f, 0xff, 0xe0, 0xff, 0xff, 0xf0, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 
+	0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xff, 0xff, 0xf0, 0x7f, 0xff, 0xe0
+};
+
+using namespace ScioSense;
+
+ENS210 ens210;
+SparkFun_ENS160 ens160; 
+Adafruit_SSD1306 display(SSD1306_SCREEN_WIDTH, SSD1306_SCREEN_HEIGHT, &Wire, SSD1306_OLED_RESET);
+RTC_DS3231 rtc;
+MPU6050 mpu(Wire);
+
+String curr_date, curr_time;
+int eCO2, tVOC, AQI, temperature, humidity;
+bool motion;
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+
+  ens210_init();
+  ens160_init();
+  ds3231_init();
+  ssd1306_init();
+  //mpu6050_init();
+  
+  ssd1306_opening_animation();
+}
+
+void loop() {
+  ssd1306_display_datetime();
+  //mpu6050_get_motion();
+  int flag = ens160_get_measurements();
+  ens210_get_measurements();
+
+  Serial.print("eCO2:" + String(eCO2));
+  Serial.print(",tVOC:" + String(tVOC));
+  Serial.print(",AQI:" + String(AQI));
+  Serial.print(",Temp:" + String(temperature));
+  Serial.print(",Hum:" + String(humidity));
+  Serial.println(",motion:" + String(motion));
+  delay(50);
+}
+
+///////////////////////////////// DS3231 /////////////////////////////////
+void ds3231_init (void) {
+  Serial.print(F("DS3231 init "));
+  if (!rtc.begin()) {
+    Serial.println(F("failed"));
+    for (;;) {}
+  }
+  Serial.println(F("done!"));
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, setting the time!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+}
+
+void ds3231_get_datetime (void) {
+  DateTime now = rtc.now();
+  ds3231_get_date(now);
+  ds3231_get_time(now);
+}
+
+void ds3231_get_date (DateTime now) {
+  curr_date = String(monthsOfTheYear[now.month()]);
+  curr_date += String(' ');
+  curr_date += String(now.day(), DEC);
+  curr_date += String(',');
+  curr_date += daysOfTheWeek[now.dayOfTheWeek()];
+}
+
+void ds3231_get_time (DateTime now) {
+  curr_time = String(now.hour(), DEC);
+  curr_time += String(':');
+  curr_time += String(now.minute(), DEC);
+}
+///////////////////////////////// DS3231 /////////////////////////////////
+
+//////////////////////////////// SSD1306 /////////////////////////////////
+void ssd1306_init (void) {
+  Serial.print(F("SSD1306 init "));
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SSD1306_SCREEN_ADDRESS)) {
+    Serial.println(F("failed"));
+    for (;;) {}
+  }
+  Serial.println(F("done!"));
+
+  display.setFont();
+  display.setTextColor(SSD1306_WHITE);
+}
+
+void ssd1306_opening_animation (void) {
+  display.clearDisplay();
+  display.display();
+  for (int i = 0; i < 6; i++) {
+    delay(100);
+    display.drawBitmap(2 + 21 * i, 27, logo_opaque_frame0, SSD1306_LOGO_O_WIDTH, 
+                       SSD1306_LOGO_O_HEIGHT, SSD1306_WHITE);
+    display.display();
+  }
+  delay(150);
+  display.clearDisplay();
+  display.drawBitmap(2, 27, logo_opaque_frame0, 125, 15, SSD1306_WHITE);
+  display.display();
+  delay(75);
+  display.clearDisplay();
+  display.drawBitmap(2, 27, logo_opaque, 125, 15, SSD1306_WHITE);
+  display.display();
+  delay(500);
+}
+
+void ssd1306_display_datetime (void) {
+  ds3231_get_datetime();
+  display.clearDisplay();
+  
+  int16_t x, y;
+  uint16_t w, h;
+  display.setTextSize(4);
+  display.getTextBounds(curr_time.c_str(), 0, 0, &x, &y, &w, &h);
+  display.setCursor((display.width() - w) / 2, (display.height() - h) / 2);
+  display.println(curr_time);
+  display.setTextSize(1);
+  display.getTextBounds(curr_date.c_str(), 0, (display.height() + h) / 2, &x, &y, &w, &h);
+  display.setCursor((display.width() - w) / 2, y);
+  display.println(curr_date);
+
+  display.display();
+}
+//////////////////////////////// SSD1306 /////////////////////////////////
+
+//////////////////////////////// MPU6050 /////////////////////////////////
+void mpu6050_init (void) {
+  Serial.print(F("MPU6050 init "));
+  if (mpu.begin()) {
+    Serial.println(F("failed"));
+    for (;;) {}
+  }
+  Serial.println(F("done!"));
+
+  Serial.print(F("MPU6050 initializing.."));
+  mpu.calcOffsets(true,true);
+  Serial.println(F(" done!"));
+}
+
+void mpu6050_get_motion (void) {
+  mpu.update();
+  float x = mpu.getAccX();
+  float y = mpu.getAccY();
+  float z = mpu.getAccZ();
+  float mag = sqrt(x * x + y * y + z * z);
+  motion = (mag > MPU6050_DETECT_THRESHOLD);
+  return;
+}
+//////////////////////////////// MPU6050 /////////////////////////////////
+
+///////////////////////////////// ENS160 /////////////////////////////////
+void ens160_init (void) {
+  Serial.print(F("ENS160 init "));
+  if (!ens160.begin() ) {
+		Serial.println(F("failed"));
+    for (;;) {}
+	}
+  Serial.println(F("done!"));
+
+	if( ens160.setOperatingMode(SFE_ENS160_RESET) ) {
+    Serial.println(F("ENS160 initializing... done!"));
+  }
+
+	delay(100);
+
+  ens160.setOperatingMode(SFE_ENS160_STANDARD);
+  int ensStatus = ens160.getFlags();
+	Serial.print(F("ENS160 Status Flag(0-Standard, 1-Warm up, 2-Initial Start Up): "));
+	Serial.println(ensStatus);
+}
+
+int ens160_get_measurements (void) {
+  if (ens160.checkDataStatus())	{
+		AQI  = ens160.getAQI();
+    tVOC = ens160.getTVOC();
+    eCO2 = ens160.getECO2();
+
+    return ens160.getFlags();
+	} 
+  return -1;
+}
+///////////////////////////////// ENS160 /////////////////////////////////
+
+///////////////////////////////// ENS210 /////////////////////////////////
+void ens210_init (void) {
+  Serial.print(F("ENS210 init "));
+  ens210.begin();
+  if (ens210.isConnected() == false) {
+    Serial.println(F("failed"));
+    for (;;) {}
+  }
+  Serial.println(F("done!"));
+
+  ens210.reset();
+
+  Serial.print(F("ENS210 initializing.."));
+  while (ens210.startContinuousMeasure() != ENS210::Result::STATUS_OK) {
+    Serial.print(".");
+    delay(ENS210::SystemTiming::BOOTING);
+  }
+  Serial.println(F(" done!"));
+}
+
+void ens210_get_measurements (void) {
+  if (ens210.update() == ENS210::Result::STATUS_OK) {
+    temperature = ens210.getTempCelsius();
+    humidity    = ens210.getHumidityPercent();
+  }
+}
+///////////////////////////////// ENS210 /////////////////////////////////
