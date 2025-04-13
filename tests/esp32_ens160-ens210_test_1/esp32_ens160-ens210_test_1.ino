@@ -14,33 +14,35 @@
 #include "ens210.h"
 #include "SparkFun_ENS160.h"
 
-using namespace ScioSense;
-
 ENS210 ens210;
+
 SparkFun_ENS160 ens160; 
 int ensStatus; 
 
 void setup() {
 	Serial.begin(115200);
   Wire.begin();
+
+  /* ---------------- ENS210 --------------- */
   ens210.begin();
+  ens210.init();
 
   if (ens210.isConnected() == false) {
     Serial.println("Error -- The ENS210 is not connected.");
     return;
   }
 
-  ens210.reset();
-
   Serial.print("Starting continous mode..");
-  while (ens210.startContinuousMeasure() != ENS210::Result::STATUS_OK) {
+  while (ens210.startContinuousMeasure() != RESULT_OK) {
     Serial.print(".");
-    delay(ENS210::SystemTiming::BOOTING);
+    delay(ENS21X_SYSTEM_TIMING_BOOTING);
   }
   Serial.println(" Done!");
 
   Serial.println();
   Serial.println("----------------------------------------");
+
+  /* ---------------- ENS160 --------------- */
 
   if (!ens160.begin() ) {
 		Serial.println("Could not communicate with the ENS160, check wiring.");
@@ -50,7 +52,7 @@ void setup() {
   Serial.println("Example 1 Basic Example.");
 
 	// Reset the indoor air quality sensor's settings.
-	if( ens160.setOperatingMode(SFE_ENS160_RESET) ) Serial.println("Ready.");
+	if (ens160.setOperatingMode(SFE_ENS160_RESET)) Serial.println("Ready.");
 
 	delay(100);
 
@@ -61,8 +63,9 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  if (ens210.update() == ENS210::Result::STATUS_OK) {
+  /* ---------------- ENS210 --------------- */
+  ens210.wait();
+  if (ens210.update() == RESULT_OK) {
     float temperatureCelsius = ens210.getTempCelsius();
     float humidityPercent    = ens210.getHumidityPercent();
 
@@ -73,9 +76,9 @@ void loop() {
     Serial.print("Humidity:");
     Serial.print(humidityPercent);
     Serial.println("%");
-    ens210.getStatusH();
   }
 
+  /* ---------------- ENS160 --------------- */
   if( ens160.checkDataStatus() )	{
 		Serial.print("AQI (1-5) : ");
 		Serial.println(ens160.getAQI());

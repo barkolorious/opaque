@@ -53,6 +53,8 @@ void loop() {
       Serial.print("Time in UTC: ");
       Serial.println(String(gps.date.year()) + "/" + String(gps.date.month()) + "/" + String(gps.date.day()) + "," + String(gps.time.hour()) + ":" + String(gps.time.minute()) + ":" + String(gps.time.second()));
       Serial.println("");
+    } else {
+      //Serial.println("no update");
     }
   }
 }

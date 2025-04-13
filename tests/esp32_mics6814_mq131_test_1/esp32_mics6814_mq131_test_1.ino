@@ -8,7 +8,7 @@ Adafruit_ADS1115 ads;
 
 uint32_t MQ131_R_load = 22000;
 int8_t temperatureCelsuis = 26;
-uint8_t humidityPercent = 20;
+uint8_t humidityPercent = 60;
 float O3 = 0;
 
 /*-----------------------MiCS6814----------------------------*/
@@ -19,9 +19,9 @@ typedef enum channel channel_t;
 enum gas {CO, NO2, NH3, C3H8, C4H10, CH4, H2, C2H5OH};
 typedef enum gas gas_t;
 
-#define NH3PIN 1
-#define COPIN 0
-#define OXPIN 2
+#define NH3PIN 2
+#define COPIN 3
+#define OXPIN 1
 
 uint16_t NH3baseR;
 uint16_t REDbaseR;
@@ -121,41 +121,41 @@ void calibrateMICS() {
       rs += ads.readADC_SingleEnded(NH3PIN);
     }
     curNH3 = rs/3;
-    /*rs = 0;
+    rs = 0;
     delay(50);
     for (int i = 0; i < 3; i++) {
       delay(1);
       rs += ads.readADC_SingleEnded(COPIN);
     }
-    curRED = rs/3;*/
-    /*rs = 0;
+    curRED = rs/3;
+    rs = 0;
     delay(50);
     for (int i = 0; i < 3; i++) {
       delay(1);
       rs += ads.readADC_SingleEnded(OXPIN);
     }
-    curOX = rs/3;*/
+    curOX = rs/3;
 
     // Update floating sum by subtracting value
     // about to be overwritten and adding the new value.
     fltSumNH3 = fltSumNH3 + curNH3 - bufferNH3[pntrNH3];
-    //fltSumRED = fltSumRED + curRED - bufferRED[pntrRED];
-    //fltSumOX = fltSumOX + curOX - bufferOX[pntrOX];
+    fltSumRED = fltSumRED + curRED - bufferRED[pntrRED];
+    fltSumOX = fltSumOX + curOX - bufferOX[pntrOX];
 
     // Store new measurement in buffer
     bufferNH3[pntrNH3] = curNH3;
-    //bufferRED[pntrRED] = curRED;
-    //bufferOX[pntrOX] = curOX;
+    bufferRED[pntrRED] = curRED;
+    bufferOX[pntrOX] = curOX;
 
     // Determine new state of flags
     NH3stable = abs(fltSumNH3 / seconds - curNH3) < delta;
-    //REDstable = abs(fltSumRED / seconds - curRED) < delta;
-    //OXstable = abs(fltSumOX / seconds - curOX) < delta;
+    REDstable = abs(fltSumRED / seconds - curRED) < delta;
+    OXstable = abs(fltSumOX / seconds - curOX) < delta;
 
     // Advance buffer pointer
     pntrNH3 = (pntrNH3 + 1) % seconds ;
-    //pntrRED = (pntrRED + 1) % seconds;
-    //pntrOX = (pntrOX + 1) % seconds;
+    pntrRED = (pntrRED + 1) % seconds;
+    pntrOX = (pntrOX + 1) % seconds;
 
     //Mikä kestää?
     if(!NH3stable) {
@@ -166,22 +166,22 @@ void calibrateMICS() {
       Serial.print(",fltSum_avg");
       Serial.println(fltSumNH3 / seconds);
     }
-    /*if(!REDstable) {
+    if(!REDstable) {
       Serial.print("(RED:");
       Serial.print(abs(fltSumRED / seconds - curRED));
       Serial.println(")");
-    }*/
-    /*if(!OXstable) {
+    }
+    if(!OXstable) {
       Serial.print("(OX:");
       Serial.print(abs(fltSumOX / seconds - curOX));
       Serial.println(")");
-    }*/
+    }
 
-  } while (!NH3stable /*|| !REDstable*/ /*|| !OXstable*/);
+  } while (!NH3stable || !REDstable || !OXstable);
 
   NH3baseR = fltSumNH3 / seconds;
-  //REDbaseR = fltSumRED / seconds;
-  //OXbaseR = fltSumOX / seconds;
+  REDbaseR = fltSumRED / seconds;
+  OXbaseR = fltSumOX / seconds;
 
   // Store new base resistance values in EEPROM
 }
@@ -287,8 +287,8 @@ float MQ131_getEnvCorrectRatio() {
 }
 
 void mq131_read () {
-  int16_t ads1115_adc_3 = ads.readADC_SingleEnded(3);
-  float mq131_voltage = ads.computeVolts(ads1115_adc_3);
+  int16_t ads1115_adc_0 = ads.readADC_SingleEnded(0);
+  float mq131_voltage = ads.computeVolts(ads1115_adc_0);
   //float R_s = (5.0 / mq131_voltage - 1.0) * MQ131_R_load;
   float R_s = (5.0 / mq131_voltage - 1.0) * MQ131_R_load;
   float ratio = R_s / 15000 * MQ131_getEnvCorrectRatio();
@@ -314,9 +314,11 @@ void setup() {
 void loop() {
   mq131_read();
   float nh3_reading = measureMICS(NH3);
+  float no2_reading = measureMICS(NO2);
+  float co_reading = measureMICS(CO);
   // put your main code here, to run repeatedly:
-  Serial.print("V_1:"); Serial.print(ads.computeVolts(ads.readADC_SingleEnded(1)));
-  Serial.print(",MiCS:"); Serial.print(nh3_reading);
-  Serial.print(",V_3:"); Serial.print(ads.computeVolts(ads.readADC_SingleEnded(3)));
+  Serial.print("NH3:"); Serial.print(nh3_reading);
+  Serial.print(",NO2:"); Serial.print(no2_reading);
+  Serial.print(",CO:"); Serial.print(co_reading);
   Serial.print(",O3:"); Serial.println(O3);
 }

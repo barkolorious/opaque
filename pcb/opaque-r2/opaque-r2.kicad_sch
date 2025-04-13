@@ -5665,7 +5665,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 67.31 149.352 90)
+			(at 69.088 149.606 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5851,7 +5851,7 @@
 		)
 	)
 	(sheet
-		(at 158.75 25.4)
+		(at 189.23 25.4)
 		(size 26.67 10.16)
 		(fields_autoplaced yes)
 		(stroke
@@ -5863,7 +5863,7 @@
 		)
 		(uuid "487c695b-2cff-459d-81ad-5019ec7bd19d")
 		(property "Sheetname" "5V Parts"
-			(at 158.75 24.6884 0)
+			(at 189.23 24.6884 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5872,7 +5872,7 @@
 			)
 		)
 		(property "Sheetfile" "5V_parts.kicad_sch"
-			(at 158.75 36.1446 0)
+			(at 189.23 36.1446 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5884,6 +5884,44 @@
 			(project "opaque-r2"
 				(path "/7438ae78-2675-47f2-b3a6-7b20cbf2e31f"
 					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 158.75 25.4)
+		(size 26.67 10.16)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "adc078cf-1abb-4bf5-b2d4-5b9ded94fb36")
+		(property "Sheetname" "Power"
+			(at 158.75 24.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power.kicad_sch"
+			(at 158.75 36.1446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "opaque-r2"
+				(path "/7438ae78-2675-47f2-b3a6-7b20cbf2e31f"
+					(page "3")
 				)
 			)
 		)

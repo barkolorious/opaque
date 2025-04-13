@@ -57,6 +57,7 @@
 	- https://asmedigitalcollection.asme.org/BIOMED/proceedings/DMD2023/86731/V001T04A003/1163853
 - https://www.hepsiburada.com/sunshinee-13-u-1-arada-tuya-wifi-hava-kalitesi-monitoru-co2-tvoc-hcho-pm2-5-pm1-0-pm10-sicaklik-nem-saat-tarih-alarm-zamanlayici-siyah-yurt-disindan-p-HBCV00005Q64H5?magaza=Sunshinee
 - https://www.google.com.tr/shopping/product/1?q=co+sensor&client=ms-opera-mobile&sca_esv=658d89c84236d039&channel=new&espv=1&biw=412&bih=733&tbs=vw:l&sxsrf=ADLYWIL0mFXPcn4EhmMx4UJxUvrWX1P5VQ:1737105446252&prds=num:1,of:1,eto:141815484925603285_0,prmr:1,pid:141815484925603285,cs:1&sa=X&ved=0ahUKEwiIlb6ItvyKAxUZ6wIHHQQRC94QgjYI_wg 
+- https://www.google.com.tr/url?q=https://www.amazon.com.tr/Dedekt%25C3%25B6r%25C3%25BC-Parlakl%25C4%25B1k-Ayarlanabilir-Kalibrasyonu-Anahtarlam/dp/B0D9LWXH9G%3Fsource%3Dps-sl-shoppingads-lpcontext%26ref_%3Dfplfs%26psc%3D1%26smid%3DA1HPSUYFQEK0I4&opi=95576897&sa=U&ved=0ahUKEwiQqdu7isOLAxU-RfEDHaF_HAYQwisIHQ&usg=AOvVaw3B4LwpCc2UoRT6NZkVTBCM
 - https://www.reddit.com/r/esp32/s/lKiWNX6Ak0
 
 ## Probable Components
@@ -111,7 +112,7 @@
 	- https://arduino.stackexchange.com/questions/53899/ads1115-measuring-5v-voltages-and-powering-with-3-3v
 - ESC32-DevKitC-V4
 	- https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch.pdf
-
+https://randomnerdtutorials.com/esp32-web-bluetooth/
 ## Current Components
 
 ### Lite
@@ -125,6 +126,7 @@
 - AQI, tVOC, eCO2 Measurement - ENS160
 - CO, NH3, NOx Measurement - MiCS6814
 - O3 Measurement - MQ-131
+- PM1, PM2.5, PM10 - PMS7003
 
 ### Connect
 - ESP32-DevKitC-V4
@@ -138,6 +140,7 @@
 - AQI, tVOC, eCO2 Measurement - ENS160
 - CO, NH3, NOx Measurement - MiCS6814
 - O3 Measurement - MQ-131
+- PM1, PM2.5, PM10 - PMS7003
 
 ---
 

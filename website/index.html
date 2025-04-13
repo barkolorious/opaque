@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Kontrol Paneli</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent: #007bff;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--accent);
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        .button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: var(--bg-primary);
+            text-align: center;
+        }
+
+        #deviceInfo {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--bg-primary);
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bluetooth Kontrol Paneli</h1>
+        
+        <button id="connectBtn" class="button">Bluetooth Cihazına Bağlan</button>
+        <button id="readBtn" class="button" disabled>Veri Oku</button>
+        
+        <div id="status">Durum: Bağlı değil</div>
+        
+        <div id="deviceInfo">
+            <h3>Cihaz Bilgileri:</h3>
+            <p id="deviceData"></p>
+        </div>
+    </div>
+
+    <script>
+        let bluetoothDevice = null;
+        let characteristic = null;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const readBtn = document.getElementById('readBtn');
+        const status = document.getElementById('status');
+        const deviceInfo = document.getElementById('deviceInfo');
+        const deviceData = document.getElementById('deviceData');
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                // Bluetooth cihazını seç
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    // Burada cihazınızın desteklediği servisleri belirtmelisiniz
+                    acceptAllDevices: true
+                });
+
+                status.textContent = 'Durum: Bağlanıyor...';
+                
+                // Cihaza bağlan
+                const server = await bluetoothDevice.gatt.connect();
+                
+                // Örnek bir servis UUID - gerçek cihazınıza göre değiştirin
+                const service = await server.getPrimaryService('battery_service');
+                
+                // Örnek bir karakteristik UUID - gerçek cihazınıza göre değiştirin
+                characteristic = await service.getCharacteristic('battery_level');
+                
+                status.textContent = 'Durum: Bağlandı';
+                readBtn.disabled = false;
+                
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+            } catch (error) {
+                console.error(error);
+                status.textContent = 'Durum: Bağlantı hatası: ' + error;
+            }
+        });
+
+        readBtn.addEventListener('click', async () => {
+            if (!characteristic) {
+                return;
+            }
+            
+            try {
+                const value = await characteristic.readValue();
+                const decoder = new TextDecoder();
+                const data = decoder.decode(value);
+                
+                deviceInfo.style.display = 'block';
+                deviceData.textContent = 'Alınan veri: ' + data;
+            } catch (error) {
+                console.error(error);
+                deviceData.textContent = 'Veri okuma hatası: ' + error;
+            }
+        });
+
+        function onDisconnected() {
+            status.textContent = 'Durum: Bağlantı kesildi';
+            readBtn.disabled = true;
+            deviceInfo.style.display = 'none';
+            bluetoothDevice = null;
+            characteristic = null;
+        }
+    </script>
+</body>
+</html>

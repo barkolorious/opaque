@@ -11,10 +11,14 @@
             "id": "fd8e5d469a99ae5a",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Notes.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Notes"
             }
           }
         ]
@@ -162,9 +166,23 @@
   },
   "active": "fd8e5d469a99ae5a",
   "lastOpenFiles": [
+    "pcb/opaque-r2/opaque-r2-backups/opaque-r2-2025-02-17_224028.zip",
+    "pcb/opaque-r2/power.kicad_sch",
+    "pcb/opaque-r2/#auto_saved_files#",
+    "pcb/opaque-r2/_autosave-power.kicad_sch",
+    "pcb/opaque-r2/_autosave-5V_parts.kicad_sch",
+    "pcb/opaque-r2/_autosave-opaque-r2.kicad_sch",
+    "pcb/opaque-r2/~opaque-r2.kicad_sch.lck",
+    "pcb/opaque-r2/~opaque-r2.kicad_pro.lck",
+    "website/index.html",
+    "website",
+    "Yeni klasör",
+    "EgeSAM 101. Yıl Sempozyumu.md",
     "Notes.md",
+    "Rapor.md",
+    "mems.metu.edu.tr.md",
     "README.md",
-    "articles/akillihava.pdf",
+    "Untitled.canvas",
     "assets/20241108_140740.jpg",
     "assets/20241108_112844.jpg",
     "assets/20241108_112724.jpg",
@@ -174,17 +192,7 @@
     "assets/20241108_101346.jpg",
     "assets/Pasted image 20250128162927.png",
     "assets/Pasted image 20241123235145.png",
-    "XR20M1170-1889071.pdf",
     "ESP32-WROOM-32U.md",
-    "tests/esp32_mics6814_test_1/esp32_mics6814_test_1.ino",
-    "tests/esp32_mics6814_test_1",
-    "tests/esp32_mq131_test_1/esp32_mq131_test_1.ino",
-    "tests/esp32_mq131_test_1",
-    "EgeSAM 101. Yıl Sempozyumu.md",
-    "tests/esp32_ads1115_test_1/esp32_ads1115_test_1.ino",
-    "tests/esp32_ads1115_test_1/Yeni Text Document.txt",
-    "tests/esp32_ads1115_test_1",
-    "tests/Yeni klasör",
     "wearable-air-quality-main/Adafruit_GPS_Library/code-of-conduct.md",
     "wearable-air-quality-main/Adafruit_GPS_Library/README.md",
     "tests/esp32_pm7003_test_1/README.md",
@@ -195,7 +203,6 @@
     "wearable-air-quality-main/README.md",
     "101..md",
     "101.-Yıl-Sempozyumu.md",
-    "Untitled.md",
     "Welcome.md",
     "create a link.md",
     "datasheets/SPS30.pdf.md",

@@ -8,6 +8,7 @@ MPU6050 mpu(Wire);
 void setup() {
   Serial.begin(115200);
   Wire.begin();
+  mpu.setAddress(0x69);
 
   if (mpu.begin()) {
     Serial.println(F("initialization failed! (MPU6050)"));
