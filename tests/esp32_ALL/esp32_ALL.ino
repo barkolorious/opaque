@@ -13,13 +13,14 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "ens210.h"
-#include "SparkFun_ENS160.h"
+//#include "Org_01.h"
+#include <ens210.h>
+#include <SparkFun_ENS160.h>
 #include <MPU6050_light.h>
 #include <RTClib.h>
-#include "FS.h"
-#include "SD.h"
-#include "SPI.h"
+#include <FS.h>
+#include <SD.h>
+#include <SPI.h>
 #include <Adafruit_ADS1X15.h>
 #include <PMserial.h>
 #include <TinyGPS++.h>
@@ -35,9 +36,9 @@
 
 //////////////////////////////////// PINS //////////////////////////////////////
 #define BTN_RECORD_PIN  0  /* GPIO0 -- Record Button */
-       /*   EMPTY    */    /* GPIO1 (UART0 TX) -- PC RX */
+/*        EMPTY         */ /* GPIO1 (UART0 TX) -- CP2102 RX */
 #define UART2_TX        2  /* GPIO2 (UART2 TX) -- NEO6M RX */
-       /*   EMPTY    */    /* GPIO3 (UART0 RX) -- PC TX */
+/*        EMPTY         */ /* GPIO3 (UART0 RX) -- CP2102 TX */
 #define UART2_RX        4  /* GPIO4 (UART2 RX) -- NEO6M TX */
 #define VSPI_CS         5  /* GPIO5 (VSPI CS)  -- SD Card CS */
 /*      DO NOT USE      */ /* GPIO6 */
@@ -54,18 +55,12 @@
 #define UART1_TX        17 /* GPIO17 (UART1 TX) -- PMS7003 RX */
 #define VSPI_CLK        18 /* GPIO18 (VSPI CLK) */
 #define VSPI_MISO       19 /* GPIO19 (VSPI MISO) */
-/*        EMPTY         */ /* GPIO20 */
 #define I2C_SDA         21 /* GPIO21 (I2C SDA) */
 #define I2C_SCL         22 /* GPIO22 (I2C SCL) */
 #define VSPI_MOSI       23 /* GPIO23 (VSPI MOSI) */
-/*        EMPTY         */ /* GPIO24 */
 #define UART3_RX        25 /* GPIO25 (SoftwareSerial [UART3] RX) -- Nextion TX */
 #define UART3_TX        26 /* GPIO26 (SoftwareSerial [UART3] TX) -- Nextion RX */
 #define BAT_CHARGE_PIN  27 /* GPIO27 (Analog)  */
-/*        EMPTY         */ /* GPIO28 */
-/*        EMPTY         */ /* GPIO29 */
-/*        EMPTY         */ /* GPIO30 */
-/*        EMPTY         */ /* GPIO31 */
 /*        EMPTY         */ /* GPIO32 */
 /*        EMPTY         */ /* GPIO33 */
 #define BAT_LEVEL_PIN   34 /* GPIO34 (Analog) */
@@ -136,11 +131,41 @@ const unsigned char logo_o [] PROGMEM = {
 	0x7f, 0xff, 0xe0, 0xff, 0xff, 0xf0, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 
 	0x00, 0x30, 0xc0, 0x00, 0x30, 0xc0, 0x00, 0x30, 0xff, 0xff, 0xf0, 0x7f, 0xff, 0xe0
 };
+const unsigned char tags [] PROGMEM = {
+  0xfb, 0xef, 0x80, 0x00, 0x00, 0x00, 0x03, 0xef, 0xbe, 0x20, 0x00, 0x82, 0x20, 0xa0, 0x00, 0x00, 
+  0x00, 0x02, 0x2a, 0xa2, 0x28, 0x00, 0x82, 0x2f, 0x80, 0x00, 0x00, 0x00, 0x03, 0xea, 0xa2, 0x20, 
+  0x00, 0x82, 0x28, 0x00, 0x00, 0x00, 0x00, 0x02, 0x0a, 0xa2, 0x20, 0x00, 0xfb, 0xef, 0xa0, 0x00, 
+  0x00, 0x00, 0x02, 0x0a, 0xbe, 0xa8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8b, 0xef, 0x80, 
+  0x00, 0x00, 0x00, 0x03, 0xef, 0xbe, 0x3e, 0x00, 0x8a, 0x28, 0x20, 0x00, 0x00, 0x00, 0x02, 0x2a, 
+  0x82, 0x20, 0x80, 0x8a, 0x28, 0x00, 0x00, 0x00, 0x00, 0x03, 0xea, 0xbe, 0x3e, 0x00, 0x52, 0x28, 
+  0x00, 0x00, 0x00, 0x00, 0x02, 0x0a, 0xa0, 0x02, 0x00, 0x23, 0xef, 0xa0, 0x00, 0x00, 0x00, 0x02, 
+  0x0a, 0xbe, 0xbe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfb, 0xef, 0x80, 0x00, 0x00, 0x00, 
+  0x03, 0xef, 0xaf, 0x80, 0x00, 0x8a, 0x22, 0x20, 0x00, 0x00, 0x00, 0x02, 0x2a, 0xa8, 0xa0, 0x00, 
+  0xfa, 0x22, 0x00, 0x00, 0x00, 0x00, 0x03, 0xea, 0xa8, 0x80, 0x00, 0x8a, 0x62, 0x00, 0x00, 0x00, 
+  0x00, 0x02, 0x0a, 0xa8, 0x80, 0x00, 0x8b, 0xef, 0xa0, 0x00, 0x00, 0x00, 0x02, 0x0a, 0xaf, 0xa0, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe8, 0xbe, 
+  0x00, 0x00, 0x23, 0xdf, 0x7a, 0x00, 0x00, 0x00, 0x02, 0x28, 0x82, 0x80, 0x00, 0x23, 0xd5, 0x48, 
+  0x00, 0x00, 0x00, 0x02, 0x2f, 0xbe, 0x00, 0x00, 0x22, 0x11, 0x48, 0x00, 0x00, 0x00, 0x02, 0x28, 
+  0x82, 0x00, 0x00, 0x23, 0xd1, 0x7a, 0x00, 0x00, 0x00, 0x02, 0x28, 0xbe, 0x80, 0x00, 0x00, 0x00, 
+  0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x88, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0xef, 0x80, 0x00, 0x00, 0x8a, 
+  0x5f, 0x5e, 0x80, 0x00, 0x00, 0x02, 0x28, 0xa5, 0x00, 0x00, 0xfa, 0x55, 0x12, 0x00, 0x00, 0x00, 
+  0x02, 0x28, 0x98, 0x00, 0x00, 0x8a, 0x51, 0x52, 0x00, 0x00, 0x00, 0x02, 0x28, 0x98, 0x00, 0x00, 
+  0x8b, 0xd1, 0x5e, 0x80, 0x00, 0x00, 0x02, 0x2f, 0xa5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0xfb, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xef, 0x80, 0x00, 0x00, 0x88, 0x28, 0x00, 0x00, 
+  0x00, 0x00, 0x02, 0x08, 0xa0, 0x00, 0x00, 0x8b, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x02, 0x08, 0x80, 
+  0x00, 0x00, 0x88, 0x20, 0x00, 0x00, 0x00, 0x00, 0x02, 0x08, 0x80, 0x00, 0x00, 0xfb, 0xe8, 0x00, 
+  0x00, 0x00, 0x00, 0x03, 0xef, 0xa0, 0x00, 0x00
+};
 /////// DS3231 /////////
 String ds3231_curr_date;
 String ds3231_curr_time;
-char daysOfTheWeek[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-char monthsOfTheYear[13][4] = {"N/A", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+const char daysOfTheWeek[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+const char monthsOfTheYear[13][4] = {"N/A", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 /////// ENS160 /////////
 uint16_t ens160_eCO2 = -1;
 uint16_t ens160_tVOC = -1;
@@ -190,9 +215,9 @@ void setup() {
   ssd1306_init();
   ens210_init();
   ens160_init();
-  ds3231_init();
+  //ds3231_init();
   mpu6050_init();
-  sd_card_init();
+  //sd_card_init();
   ads1115_init();
   mq131_init();
   mics6814_init();
@@ -207,22 +232,22 @@ void loop() {
   ens160_read();
   ens210_read();
   mpu6050_read();
-  ds3231_read();
+  //ds3231_read();
   mq131_read();
   mics6814_read();
   pms7003_read();
   neo6m_read();
 
   String ens160_report     = "eCO2:[" + String(ens160_eCO2) + "],tVOC:[" + String(ens160_tVOC) + "],AQI:[" + String(ens160_AQI) + "],";
-  String ens210_report     = "T:[" + String(ens210_temperature) + "],Hum:" + String(ens210_humidity) + "],";
+  String ens210_report     = "T:[" + String(ens210_temperature) + "],Hum:[" + String(ens210_humidity) + "],";
   String mpu6050_report    = "motion:[" + String(mpu6050_in_motion) + "],";
   String mq131_report      = "O3:[" + String(mq131_O3) + "],";
   String pms7003_PM_report = "PM:[" + String(pms7003_PM0p1) + "," + String(pms7003_PM2p5) + "," + String(pms7003_PM10) + "],";
-  String pms7003_N_report  = "N:[" + String(pms7003_N0p3) + "," + String(pms7003_N0p3) + "," + String(pms7003_N1) + "," + String(pms7003_N2p5) + "," + String(pms7003_N5) + "," + String(pms7003_N10) + "],";
+  //String pms7003_N_report  = "N:[" + String(pms7003_N0p3) + "," + String(pms7003_N0p3) + "," + String(pms7003_N1) + "," + String(pms7003_N2p5) + "," + String(pms7003_N5) + "," + String(pms7003_N10) + "],";
   String neo6m_report      = "LAT:[" + String(neo6m_lat) + "],LNG:[" + String(neo6m_lng) + "],ALT:[" + String(neo6m_alt) + "],";
   String mics6814_report   = "NH3:[" + String(mics6814_NH3) + "],NO2:[" + String(mics6814_NO2) + "],CO:[" + String(mics6814_CO) + "],";
 
-  String all = ens160_report + ens210_report + mpu6050_report + mq131_report + pms7003_PM_report + pms7003_N_report + neo6m_report + mics6814_report;
+  String all = ens160_report + ens210_report + mpu6050_report + mq131_report + pms7003_PM_report +/* pms7003_N_report +*/ neo6m_report + mics6814_report;
 
   ssd1306_new_screen();
   ssd1306_println(all);
@@ -336,6 +361,41 @@ void ssd1306_new_screen (void) {
   ssd1306.setCursor(0, 0);
   ssd1306.display();
 }
+/*
+void ssd1306_update (void) {
+  ssd1306_new_screen();
+  ssd1306.setTextWrap(false);
+  ssd1306.setFont(&Org_01);
+  ssd1306.setCursor(8, 7);
+  ssd1306.print("09:23");
+  ssd1306.setCursor(101, 7);
+  ssd1306.print("%100");
+  ssd1306.setCursor(34, 41);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(34, 48);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(58, 34);
+  ssd1306.print("1");
+  ssd1306.setCursor(41, 20);
+  ssd1306.print("999");
+  ssd1306.setCursor(33, 27);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 55);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 20);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 48);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 41);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 34);
+  ssd1306.print("99.99");
+  ssd1306.setCursor(94, 27);
+  ssd1306.print("99.99");
+  ssd1306.drawBitmap(8, 16, tags, 81, 40, 1);
+  ssd1306.display();
+}
+*/
 /////////////////////////////////// SSD1306 ////////////////////////////////////
 
 /////////////////////////////////// MPU6050 ////////////////////////////////////
@@ -493,6 +553,7 @@ void mq131_read (void) {
   double voltage = ads1115_read(MQ131_ADS1115_PIN);
   double R_s = (5.0 / voltage - 1.0) * MQ131_R_LOAD;
   double ratio = R_s / 15000 * mq131_get_environment_correction_ratio();
+  Serial.println("ratio=" + String(ratio));
 
   mq131_O3 = (8.37768358 * pow(ratio, 2.30375446) - 8.37768358);
 }
@@ -524,7 +585,11 @@ double mq131_get_environment_correction_ratio (void) {
 void mics6814_init (void) {
   ssd1306_new_screen();
   ssd1306_print(F("MICS6814 starting.."));
+  //mics6814_calibrate();
+  ssd1306_println(F("done!"));
+}
 
+void mics6814_calibrate (void) {
   // Continuously measure the resistance,
   // storing the last N measurements in a circular buffer.
   // Calculate the floating average of the last seconds.
@@ -635,8 +700,12 @@ void mics6814_init (void) {
   mics6814_NH3_base_R = fltSumNH3 / seconds;
   mics6814_RED_base_R = fltSumRED / seconds;
   mics6814_OX_base_R  = fltSumOX  / seconds;
+}
 
-  ssd1306_println(F("done!"));
+void mics6814_read (void) {
+  mics6814_NH3 = mics6814_read_gas(NH3);
+  mics6814_NO2 = mics6814_read_gas(NO2);
+  mics6814_CO  = mics6814_read_gas(CO);
 }
 
 /**
@@ -678,7 +747,7 @@ uint16_t mics6814_get_channel_base_R (mics6814_channel_t channel) {
           The channel to request resistance values from.
    @return The floating-point resistance ratio for the given channel.
 */
-double getCurrentRatio(mics6814_channel_t channel) {
+double mics6814_get_current_ratio(mics6814_channel_t channel) {
   double baseResistance = (double) mics6814_get_channel_base_R(channel);
   double resistance = (double) mics6814_read_channel_R(channel);
 
@@ -701,46 +770,40 @@ double mics6814_read_gas (mics6814_gas_t gas) {
 
   switch (gas) {
     case CO:
-      ratio = getCurrentRatio(CH_RED);
+      ratio = mics6814_get_current_ratio(CH_RED);
       c = pow(ratio, -1.179) * 4.385;
       break;
     case NO2:
-      ratio = getCurrentRatio(CH_OX);
+      ratio = mics6814_get_current_ratio(CH_OX);
       c = pow(ratio, 1.007) / 6.855;
       break;
     case NH3:
-      ratio = getCurrentRatio(CH_NH3);
+      ratio = mics6814_get_current_ratio(CH_NH3);
       c = pow(ratio, -1.67) / 1.47;
       break;
     case C3H8:
-      ratio = getCurrentRatio(CH_NH3);
+      ratio = mics6814_get_current_ratio(CH_NH3);
       c = pow(ratio, -2.518) * 570.164;
       break;
     case C4H10:
-      ratio = getCurrentRatio(CH_NH3);
+      ratio = mics6814_get_current_ratio(CH_NH3);
       c = pow(ratio, -2.138) * 398.107;
       break;
     case CH4:
-      ratio = getCurrentRatio(CH_RED);
+      ratio = mics6814_get_current_ratio(CH_RED);
       c = pow(ratio, -4.363) * 630.957;
       break;
     case H2:
-      ratio = getCurrentRatio(CH_RED);
+      ratio = mics6814_get_current_ratio(CH_RED);
       c = pow(ratio, -1.8) * 0.73;
       break;
     case C2H5OH:
-      ratio = getCurrentRatio(CH_RED);
+      ratio = mics6814_get_current_ratio(CH_RED);
       c = pow(ratio, -1.552) * 1.622;
       break;
   }
 
   return isnan(c) ? -1 : c;
-}
-
-void mics6814_read (void) {
-  mics6814_NH3 = mics6814_read_gas(NH3);
-  mics6814_NO2 = mics6814_read_gas(NO2);
-  mics6814_CO  = mics6814_read_gas(CO);
 }
 /////////////////////////////////// MICS6814 ///////////////////////////////////
 
