@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Sensor Map (Dark GitHub Style)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+        h1 {
+            font-family: 'TT Supermolot Neue Expanded', sans-serif;
+            background-color: #161b22;
+            font-weight: 900;
+            color: #f0f6fc;
+            padding: 12px 20px;
+            margin: 0;
+            border-bottom: 1px solid #30363d;
+        }
+        .container {
+            display: flex;
+            height: calc(100% - 48px);
+        }
+        .control-panel {
+            width: 400px;
+            padding: 16px;
+            overflow-y: auto;
+            background-color: #161b22;
+            border-right: 1px solid #30363d;
+        }
+        .map-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background-color: #0d1117;
+        }
+        #map {
+            flex: 1;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+        }
+        .sensor-data {
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #161b22;
+            margin-bottom: 12px;
+        }
+        details summary {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 600;
+            background: #0d1117;
+            border-bottom: 1px solid #30363d;
+            user-select: none;
+            color: #58a6ff;
+        }
+        .measurement {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 12px;
+            border-top: 1px solid #21262d;
+            font-size: 14px;
+        }
+        .coordinates {
+            padding: 6px 12px;
+            font-family: monospace;
+            color: #8b949e;
+            background-color: #0d1117;
+            border-top: 1px solid #21262d;
+            font-size: 13px;
+        }
+        .map-container h2,
+        .control-panel h2 {
+            font-family: 'TT Supermolot Neue Expanded', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #58a6ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Sensor Network Monitor</h1>
+
+    <div class="container">
+        <div class="control-panel">
+            <h2>Sensor Data Feed</h2>
+            <div id="sensorData">
+                <p>Waiting for data...</p>
+            </div>
+            <p class="coordinates">Last update: <span id="timestamp">Never</span></p>
+        </div>
+
+        <div class="map-container">
+            <h2>Sensor Locations</h2>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        const sensorDataContainer = document.getElementById('sensorData');
+        const timestampContainer = document.getElementById('timestamp');
+
+        const MEASUREMENT_TYPES = [
+            { name: 'Temperature', unit: '°C', decimals: 1 },
+            { name: 'Humidity', unit: '%', decimals: 1 },
+            { name: 'CO2', unit: 'ppm', decimals: 1 },
+            { name: 'tVOC', unit: 'ppb', decimals: 1 },
+            { name: 'AQI', unit: '', decimals: 0 },
+            { name: 'O3', unit: 'ppm', decimals: 1 },
+            { name: 'NH3', unit: 'ppm', decimals: 1 },
+            { name: 'NO2', unit: 'ppm', decimals: 1 },
+            { name: 'CO', unit: 'ppm', decimals: 1 },
+            { name: 'PM1', unit: 'µg/m3', decimals: 1 },
+            { name: 'PM2.5', unit: 'µg/m3', decimals: 1 },
+            { name: 'PM10', unit: 'µg/m3', decimals: 1 }
+        ];
+
+        let map;
+        let markers = {};
+        let sensorReadings = [];
+        let lastDataString = "";
+
+        function initMap() {
+            map = L.map('map').setView([38.3838703, 27.0602858], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        function parseSensorData(dataString) {
+            try {
+                const cleanedString = dataString.trim().replace(/[\r\n\t]/g, '');
+                const dataMatch = cleanedString.match(/A([^A]+)A/);
+                if (!dataMatch) return null;
+
+                const actualData = dataMatch[1];
+                const parts = actualData.split('+');
+                const coords = parts[0].split(',');
+                const longitude = parseFloat(coords[0]);
+                const latitude = parseFloat(coords[1]);
+
+                const measurements = [];
+                for (let i = 1; i < parts.length; i++) {
+                    const value = parseFloat(parts[i]);
+                    if (!isNaN(value) && isFinite(value)) {
+                        const type = MEASUREMENT_TYPES[i - 1] || { name: `Sensor ${i}`, unit: '', decimals: 2 };
+                        measurements.push({
+                            type: type.name,
+                            value,
+                            unit: type.unit,
+                            decimals: type.decimals
+                        });
+                    }
+                }
+
+                return { longitude, latitude, measurements, timestamp: new Date() };
+            } catch {
+                return null;
+            }
+        }
+
+        function updateSensorDisplay(sensorData) {
+            const summaryText = `${sensorData.timestamp.toLocaleTimeString()} - ${sensorData.latitude.toFixed(3)}, ${sensorData.longitude.toFixed(3)}`;
+            const div = document.createElement('div');
+            div.className = 'sensor-data';
+
+            const detail = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.textContent = summaryText;
+
+            const coordDiv = document.createElement('div');
+            coordDiv.className = 'coordinates';
+            coordDiv.textContent = `Location: ${sensorData.latitude.toFixed(6)}, ${sensorData.longitude.toFixed(6)}`;
+
+            detail.appendChild(summary);
+            detail.appendChild(coordDiv);
+
+            sensorData.measurements.forEach(m => {
+                const mDiv = document.createElement('div');
+                mDiv.className = 'measurement';
+                mDiv.innerHTML = `<span><strong>${m.type}</strong></span><span>${m.value.toFixed(m.decimals)}${m.unit}</span>`;
+                detail.appendChild(mDiv);
+            });
+
+            div.appendChild(detail);
+            sensorDataContainer.prepend(div);
+            timestampContainer.textContent = sensorData.timestamp.toLocaleString();
+        }
+
+        function updateMap(sensorData) {
+            const key = `${sensorData.latitude.toFixed(6)},${sensorData.longitude.toFixed(6)}`;
+            let popup = `<h4>Sensor Reading</h4><p><strong>Location:</strong><br>Lat: ${sensorData.latitude}<br>Lng: ${sensorData.longitude}</p>`;
+            sensorData.measurements.forEach(m => {
+                popup += `<div><strong>${m.type}:</strong> ${m.value.toFixed(m.decimals)}${m.unit}</div>`;
+            });
+            popup += `<p><strong>Time:</strong> ${sensorData.timestamp.toLocaleString()}</p>`;
+
+            if (markers[key]) map.removeLayer(markers[key]);
+            const marker = L.marker([sensorData.latitude, sensorData.longitude]).addTo(map).bindPopup(popup);
+            markers[key] = marker;
+            map.setView([sensorData.latitude, sensorData.longitude], Math.max(map.getZoom(), 12));
+        }
+
+        function fetchLatest() {
+            fetch('http://localhost:5000/latest')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.data && data.data !== lastDataString) {
+                        lastDataString = data.data;
+                        const sensorData = parseSensorData(data.data);
+                        if (sensorData) {
+                            sensorReadings.push(sensorData);
+                            updateSensorDisplay(sensorData);
+                            updateMap(sensorData);
+                        }
+                    }
+                })
+                .catch(err => console.error('Fetch error:', err));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            setInterval(fetchLatest, 3000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!--
+  Modified from Rui Santos - ESP32 Web BLE App
+  Enhanced with sensor data parsing and map visualization
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Sensor Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+        }
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .map-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .sensor-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .measurement {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 4px;
+        }
+        .coordinates {
+            font-family: monospace;
+            color: #666;
+            font-size: 12px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Sensor Network Monitor</h1>
+    
+    <div class="container">
+        <div class="control-panel">
+            <h2>BLE Connection</h2>
+            <button id="connectBleButton">Connect to BLE Device</button>
+            <button id="disconnectBleButton">Disconnect BLE Device</button>
+            <p>Status: <span id="bleState" class="status disconnected">Disconnected</span></p>
+            
+            <h2>GPIO Control</h2>
+            <button id="onButton">Turn ON</button>
+            <button id="offButton">Turn OFF</button>
+            <p>Last command: <span id="valueSent">None</span></p>
+            
+            <h2>Latest Sensor Data</h2>
+            <div id="sensorData" class="sensor-data">
+                <p>Waiting for data...</p>
+            </div>
+            <p class="coordinates">Last update: <span id="timestamp">Never</span></p>
+        </div>
+        
+        <div class="map-container">
+            <h2>Sensor Locations</h2>
+            <div id="map"></div>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                Click on markers to view sensor readings
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        // DOM Elements
+        const connectButton = document.getElementById('connectBleButton');
+        const disconnectButton = document.getElementById('disconnectBleButton');
+        const onButton = document.getElementById('onButton');
+        const offButton = document.getElementById('offButton');
+        const sensorDataContainer = document.getElementById('sensorData');
+        const latestValueSent = document.getElementById('valueSent');
+        const bleStateContainer = document.getElementById('bleState');
+        const timestampContainer = document.getElementById('timestamp');
+
+        // BLE Device Specifications
+        var deviceName = 'opaque - Personal Kit';
+        var bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
+        var ledCharacteristic = '19b10002-e8f2-537e-4f6c-d104768a1214';
+        var sensorCharacteristic = '19b10001-e8f2-537e-4f6c-d104768a1214';
+
+        // Global BLE Variables
+        var bleServer;
+        var bleServiceFound;
+        var sensorCharacteristicFound;
+
+        // Map and sensor data storage
+        var map;
+        var markers = {};
+        var sensorReadings = [];
+
+        // Initialize map
+        function initMap() {
+            // Default center (you can change this to your preferred location)
+            map = L.map('map').setView([38.38387030188651,27.06028583851056], 10); // Denver, CO as default
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Define measurement types in order (modify these according to your sensors)
+        const MEASUREMENT_TYPES = [
+            { name: 'Temperature', unit: '°C', decimals: 1 },
+            { name: 'Humidity', unit: '%', decimals: 1 },
+            { name: 'Pressure', unit: 'hPa', decimals: 2 }
+        ];
+
+        // Parse sensor data format: "A<longitude>,<latitude>+<measurement1>+<measurement2>+<measurement3>A"
+        function parseSensorData(dataString) {
+            try {
+                console.log('Raw data received:', JSON.stringify(dataString));
+                
+                // Clean the data string - remove whitespace and control characters
+                let cleanedString = dataString.trim().replace(/[\r\n\t]/g, '');
+                console.log('Cleaned data:', JSON.stringify(cleanedString));
+                
+                // Find the actual data between A markers using regex
+                const dataMatch = cleanedString.match(/A([^A]+)A/);
+                if (!dataMatch) {
+                    throw new Error(`Invalid data format: no data found between A markers. Received: "${cleanedString}"`);
+                }
+                
+                const actualData = dataMatch[1];
+                console.log('Extracted data:', actualData);
+                
+                const parts = actualData.split('+');
+                console.log('Split parts:', parts);
+                
+                if (parts.length < 2) {
+                    throw new Error('Invalid data format: insufficient parts');
+                }
+                
+                // Parse coordinates
+                const coords = parts[0].split(',');
+                if (coords.length !== 2) {
+                    throw new Error('Invalid coordinate format');
+                }
+                
+                const longitude = parseFloat(coords[0]);
+                const latitude = parseFloat(coords[1]);
+                
+                if (isNaN(longitude) || isNaN(latitude)) {
+                    throw new Error('Invalid coordinate values');
+                }
+                
+                // Parse measurements (parts[1] onwards are measurement values)
+                const measurements = [];
+                for (let i = 1; i < parts.length; i++) {
+                    const value = parseFloat(parts[i]);
+                    if (!isNaN(value)) {
+                        const measurementIndex = i - 1;
+                        const measurementType = MEASUREMENT_TYPES[measurementIndex] || 
+                                               { name: `Sensor ${measurementIndex + 1}`, unit: '', decimals: 2 };
+                        
+                        measurements.push({
+                            type: measurementType.name,
+                            value: value,
+                            unit: measurementType.unit,
+                            decimals: measurementType.decimals
+                        });
+                    }
+                }
+                
+                console.log('Parsed sensor data:', { longitude, latitude, measurements });
+                
+                return {
+                    longitude: longitude,
+                    latitude: latitude,
+                    measurements: measurements,
+                    timestamp: new Date()
+                };
+            } catch (error) {
+                console.error('Error parsing sensor data:', error);
+                console.error('Original data:', JSON.stringify(dataString));
+                return null;
+            }
+        }
+
+        // Update map with new sensor data
+        function updateMap(sensorData) {
+            const { latitude, longitude, measurements, timestamp } = sensorData;
+            const locationKey = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+            
+            // Create popup content
+            let popupContent = `
+                <div style="min-width: 200px;">
+                    <h4>Sensor Reading</h4>
+                    <p><strong>Location:</strong><br>
+                    Lat: ${latitude.toFixed(6)}<br>
+                    Lng: ${longitude.toFixed(6)}</p>
+                    <p><strong>Measurements:</strong></p>
+            `;
+            
+            measurements.forEach(measurement => {
+                const displayValue = measurement.value.toFixed(measurement.decimals);
+                popupContent += `<div style="margin: 5px 0; padding: 5px; background: #f0f0f0; border-radius: 4px;">
+                    <strong>${measurement.type}:</strong> ${displayValue}${measurement.unit}
+                </div>`;
+            });
+            
+            popupContent += `<p style="font-size: 12px; color: #666; margin-top: 10px;">
+                <strong>Time:</strong> ${timestamp.toLocaleString()}
+            </p></div>`;
+            
+            // Remove existing marker if it exists
+            if (markers[locationKey]) {
+                map.removeLayer(markers[locationKey]);
+            }
+            
+            // Create new marker
+            const marker = L.marker([latitude, longitude])
+                .addTo(map)
+                .bindPopup(popupContent);
+            
+            markers[locationKey] = marker;
+            
+            // Center map on new marker
+            map.setView([latitude, longitude], Math.max(map.getZoom(), 12));
+        }
+
+        // Update sensor data display
+        function updateSensorDisplay(sensorData) {
+            let displayHTML = `
+                <div class="coordinates">
+                    <strong>Location:</strong> ${sensorData.latitude.toFixed(6)}, ${sensorData.longitude.toFixed(6)}
+                </div>
+            `;
+            
+            sensorData.measurements.forEach(measurement => {
+                const displayValue = measurement.value.toFixed(measurement.decimals);
+                displayHTML += `
+                    <div class="measurement">
+                        <span><strong>${measurement.type}:</strong></span>
+                        <span>${displayValue}${measurement.unit}</span>
+                    </div>
+                `;
+            });
+            
+            sensorDataContainer.innerHTML = displayHTML;
+            timestampContainer.textContent = sensorData.timestamp.toLocaleString();
+        }
+
+        // Event Listeners
+        connectButton.addEventListener('click', (event) => {
+            if (isWebBluetoothEnabled()) {
+                connectToDevice();
+            }
+        });
+
+        disconnectButton.addEventListener('click', disconnectDevice);
+        onButton.addEventListener('click', () => writeOnCharacteristic(1));
+        offButton.addEventListener('click', () => writeOnCharacteristic(0));
+
+        // Check if BLE is available
+        function isWebBluetoothEnabled() {
+            if (!navigator.bluetooth) {
+                console.log("Web Bluetooth API is not available in this browser!");
+                bleStateContainer.innerHTML = "Web Bluetooth API not available";
+                bleStateContainer.className = "status disconnected";
+                return false;
+            }
+            console.log('Web Bluetooth API supported in this browser.');
+            return true;
+        }
+
+        // Connect to BLE Device
+        function connectToDevice() {
+            console.log('Initializing Bluetooth...');
+            navigator.bluetooth.requestDevice({
+                filters: [{name: deviceName}],
+                optionalServices: [bleService]
+            })
+            .then(device => {
+                console.log('Device Selected:', device.name);
+                bleStateContainer.innerHTML = 'Connected to ' + device.name;
+                bleStateContainer.className = "status connected";
+                device.addEventListener('gattservicedisconnected', onDisconnected);
+                return device.gatt.connect();
+            })
+            .then(gattServer => {
+                bleServer = gattServer;
+                console.log("Connected to GATT Server");
+                return bleServer.getPrimaryService(bleService);
+            })
+            .then(service => {
+                bleServiceFound = service;
+                console.log("Service discovered:", service.uuid);
+                return service.getCharacteristic(sensorCharacteristic);
+            })
+            .then(characteristic => {
+                console.log("Characteristic discovered:", characteristic.uuid);
+                sensorCharacteristicFound = characteristic;
+                characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicChange);
+                characteristic.startNotifications();
+                console.log("Notifications Started.");
+                return characteristic.readValue();
+            })
+            .then(value => {
+                console.log("Read value: ", value);
+                const decodedValue = new TextDecoder().decode(value);
+                console.log("Decoded value: ", decodedValue);
+                handleSensorData(decodedValue);
+            })
+            .catch(error => {
+                console.log('Error: ', error);
+                bleStateContainer.innerHTML = "Connection failed";
+                bleStateContainer.className = "status disconnected";
+            });
+        }
+
+        function onDisconnected(event) {
+            console.log('Device Disconnected:', event.target.device.name);
+            bleStateContainer.innerHTML = "Device disconnected";
+            bleStateContainer.className = "status disconnected";
+        }
+
+        function handleCharacteristicChange(event) {
+            const newValueReceived = new TextDecoder().decode(event.target.value);
+            console.log("Characteristic value changed: ", newValueReceived);
+            handleSensorData(newValueReceived);
+        }
+
+        // Buffer for incomplete data packets
+        let dataBuffer = '';
+
+        function handleSensorData(dataString) {
+            // Add new data to buffer
+            dataBuffer += dataString;
+            console.log('Current buffer:', JSON.stringify(dataBuffer));
+            
+            // Check if we have a complete packet (contains both A markers)
+            const startIndex = dataBuffer.indexOf('A');
+            const endIndex = dataBuffer.lastIndexOf('A');
+            
+            if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
+                // Extract complete packet
+                const completePacket = dataBuffer.substring(startIndex, endIndex + 1);
+                console.log('Complete packet found:', JSON.stringify(completePacket));
+                
+                // Remove processed data from buffer
+                dataBuffer = dataBuffer.substring(endIndex + 1);
+                
+                // Parse the complete packet
+                const sensorData = parseSensorData(completePacket);
+                if (sensorData) {
+                    sensorReadings.push(sensorData);
+                    updateSensorDisplay(sensorData);
+                    updateMap(sensorData);
+                } else {
+                    // If parsing fails, show raw data
+                    sensorDataContainer.innerHTML = `<p>Raw data: ${completePacket}</p>`;
+                    timestampContainer.textContent = new Date().toLocaleString();
+                }
+            } else {
+                console.log('Incomplete packet, waiting for more data...');
+                // Optional: Clear buffer if it gets too large (prevent memory issues)
+                if (dataBuffer.length > 1000) {
+                    console.log('Buffer too large, clearing...');
+                    dataBuffer = '';
+                }
+            }
+        }
+
+        function writeOnCharacteristic(value) {
+            if (bleServer && bleServer.connected) {
+                bleServiceFound.getCharacteristic(ledCharacteristic)
+                .then(characteristic => {
+                    console.log("Found the LED characteristic: ", characteristic.uuid);
+                    const data = new Uint8Array([value]);
+                    return characteristic.writeValue(data);
+                })
+                .then(() => {
+                    latestValueSent.innerHTML = value === 1 ? 'ON' : 'OFF';
+                    console.log("Value written to LED characteristic:", value);
+                })
+                .catch(error => {
+                    console.error("Error writing to the LED characteristic: ", error);
+                });
+            } else {
+                console.error("Bluetooth is not connected. Cannot write to characteristic.")
+                window.alert("Bluetooth is not connected. Connect to BLE first!");
+            }
+        }
+
+        function disconnectDevice() {
+            console.log("Disconnect Device.");
+            if (bleServer && bleServer.connected) {
+                if (sensorCharacteristicFound) {
+                    sensorCharacteristicFound.stopNotifications()
+                        .then(() => {
+                            console.log("Notifications Stopped");
+                            return bleServer.disconnect();
+                        })
+                        .then(() => {
+                            console.log("Device Disconnected");
+                            bleStateContainer.innerHTML = "Disconnected";
+                            bleStateContainer.className = "status disconnected";
+                        })
+                        .catch(error => {
+                            console.log("An error occurred:", error);
+                        });
+                } else {
+                    console.log("No characteristic found to disconnect.");
+                }
+            } else {
+                console.error("Bluetooth is not connected.");
+                window.alert("Bluetooth is not connected.");
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            
+            // Test data button for development (remove in production)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                const testButton = document.createElement('button');
+                testButton.textContent = 'Test Data';
+                testButton.onclick = () => {
+                    const testData = "A-104.9903,39.7392+23.5+65.2+1013.25A";
+                    handleSensorData(testData);
+                };
+                document.querySelector('.control-panel').appendChild(testButton);
+            }
+        });
+    </script>
+</body>
+</html>
