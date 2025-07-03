@@ -102,8 +102,11 @@ void nextion_read (void) {
       ds3231_curr_date += monthsOfTheYear[temp_arr[0]];
       ds3231_curr_date += ", ";
       ds3231_curr_date += daysOfTheWeek[temp_arr[4]];
-      ds3231_curr_time = temp_arr[2];
+      if (temp_arr[2] < 10) ds3231_curr_time = "0";
+      else                  ds3231_curr_time = "";
+      ds3231_curr_time += temp_arr[2];
       ds3231_curr_time += ":";
+      if (temp_arr[3] < 10) ds3231_curr_time += "0";
       ds3231_curr_time += temp_arr[3];
     }
     while (nextion.available()) nextion.read();

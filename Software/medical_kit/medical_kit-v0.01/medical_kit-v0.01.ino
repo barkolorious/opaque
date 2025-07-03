@@ -65,13 +65,13 @@
 #define I2C_SDA         21 /* GPIO21 (I2C SDA) */
 #define I2C_SCL         22 /* GPIO22 (I2C SCL) */
 #define VSPI_MOSI       23 /* GPIO23 (VSPI MOSI) */
-//#define UART3_RX        25 /* GPIO25 (SoftwareSerial [UART3] RX) -- Nextion TX (WiFi) */
+/*        EMPTY         */ /* GPIO25 (WiFi) */
 #define UART3_TX        26 /* GPIO26 (SoftwareSerial [UART3] TX) -- Nextion RX (WiFi) */
 /*        EMPTY         */ /* GPIO27 (WiFi) */
 #define BTN_RECORD_PIN  32 /* GPIO32 -- Record Button */
 #define BTN_BACKUP_PIN  33 /* GPIO33 -- Backup Button */
 #define BAT_LEVEL_PIN   34 /* GPIO34 (Analog) -- Battery Charge Level */
-#define UART3_RX 35 /* GPIO35 (Int) -- Nextion */
+#define UART3_RX        35 /* GPIO25 (SoftwareSerial [UART3] RX) -- Nextion TX */
 #define BAT_CHARGE_PIN  36 /* GPIO36 (Analog) -- Battery Is Charging?*/
 /*        EMPTY         */ /* GPIO39 */
 ///////////////////////////////////// PINS /////////////////////////////////////
@@ -105,6 +105,7 @@ float measurements[12] = { -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
 bool is_alarm = false;
 uint8_t alarm_reason = -1;
 uint32_t last_alarm_time = 0;
+uint32_t last_alarm_times[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //////////////// DS3231 ////////////////
 String ds3231_curr_date;
 String ds3231_curr_time;
@@ -176,7 +177,6 @@ void setup() {
   
   nextion_init();
 
-  //ds3231_init();
   ens210_init();
   ens160_init();
   mpu6050_init();
@@ -190,14 +190,20 @@ void setup() {
   espnow_init();
 
   Serial.println("started");
+
+  mics6814_calibrate();
 }
 
 void loop() {
-  if (millis() - measurement_timer > 5000) {
+  Serial.print("nh3: ");
+  Serial.println(mics6814_NH3_base_R);
+  Serial.print("RED: ");
+  Serial.println(mics6814_RED_base_R);
+  Serial.print("OX: ");
+  Serial.println(mics6814_OX_base_R);
+
+  /*if (millis() - measurement_timer > 5000) {
     measurement_timer = millis();
-    //ds3231_curr_date="Jun 14, Sat";
-    //ds3231_curr_time=millis();
-    //ds3231_read();
     ens160_read();
     ens210_read();
     mpu6050_read();
@@ -225,22 +231,22 @@ void loop() {
   nextion_read();
 
   uint32_t wait_timer = millis();
-  while (millis() - wait_timer < 100) ;
+  while (millis() - wait_timer < 100) ;*/
 }
 
 void update_measurements (void) {
-  measurements[0]  = ens210_temperature;
-  measurements[1]  = ens210_humidity;
-  measurements[2]  = ens160_eCO2;
-  measurements[3]  = ens160_tVOC;
-  measurements[4]  = ens160_AQI;
-  measurements[5]  = mq131_O3;
-  measurements[6]  = mics6814_NH3;
-  measurements[7]  = mics6814_NO2;
-  measurements[8]  = mics6814_CO;
-  measurements[9]  = pms7003_PM1;
-  measurements[10] = pms7003_PM2p5;
-  measurements[11] = pms7003_PM10;
+  measurements[0]  = 0.9 * measurements[0]  + 0.1 * ens210_temperature;
+  measurements[1]  = 0.8 * measurements[1]  + 0.2 * ens210_humidity;
+  measurements[2]  = 0.8 * measurements[2]  + 0.2 * ens160_eCO2;
+  measurements[3]  = 0.8 * measurements[3]  + 0.2 * ens160_tVOC;
+  measurements[4]  = 0.0 * measurements[4]  + 1.0 * ens160_AQI;
+  measurements[5]  = 0.8 * measurements[5]  + 0.2 * mq131_O3;
+  measurements[6]  = 0.8 * measurements[6]  + 0.2 * mics6814_NH3;
+  measurements[7]  = 0.8 * measurements[7]  + 0.2 * mics6814_NO2;
+  measurements[8]  = 0.8 * measurements[8]  + 0.2 * mics6814_CO;
+  measurements[9]  = 0.8 * measurements[9]  + 0.2 * pms7003_PM1;
+  measurements[10] = 0.8 * measurements[10] + 0.2 * pms7003_PM2p5;
+  measurements[11] = 0.8 * measurements[11] + 0.2 * pms7003_PM10;
 }
 
 void check_alarms (void) {
@@ -248,6 +254,7 @@ void check_alarms (void) {
   alarm_reason = -1;
   for (int i = 0; i < 12; i++) {
     if (!std::isnormal(measurements[i])) continue;
+    if (millis() - last_alarm_times[i] < 10000) continue;
     if (measurements[i] > alarm_values[i]) {
       handle_alarm(i);
       return;
@@ -259,6 +266,7 @@ void handle_alarm (uint8_t gas) {
   is_alarm = true;
   alarm_reason = gas;
   last_alarm_time = millis();
+  last_alarm_times[alarm_reason] = millis();
 
   Serial.print("reason " + nextion_gas_names[alarm_reason]);
   Serial.print(", alarm ");

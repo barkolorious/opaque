@@ -65,13 +65,13 @@
 #define I2C_SDA         21 /* GPIO21 (I2C SDA) */
 #define I2C_SCL         22 /* GPIO22 (I2C SCL) */
 #define VSPI_MOSI       23 /* GPIO23 (VSPI MOSI) */
-//#define UART3_RX        25 /* GPIO25 (SoftwareSerial [UART3] RX) -- Nextion TX (WiFi) */
+/*        EMPTY         */ /* GPIO25 (WiFi) */
 #define UART3_TX        26 /* GPIO26 (SoftwareSerial [UART3] TX) -- Nextion RX (WiFi) */
 /*        EMPTY         */ /* GPIO27 (WiFi) */
 #define BTN_RECORD_PIN  32 /* GPIO32 -- Record Button */
 #define BTN_BACKUP_PIN  33 /* GPIO33 -- Backup Button */
 #define BAT_LEVEL_PIN   34 /* GPIO34 (Analog) -- Battery Charge Level */
-#define UART3_RX 35 /* GPIO35 (Int) -- Nextion */
+#define UART3_RX        35 /* GPIO25 (SoftwareSerial [UART3] RX) -- Nextion TX */
 #define BAT_CHARGE_PIN  36 /* GPIO36 (Analog) -- Battery Is Charging?*/
 /*        EMPTY         */ /* GPIO39 */
 ///////////////////////////////////// PINS /////////////////////////////////////
@@ -101,23 +101,24 @@ SoftwareSerial nextion(UART3_RX, UART3_TX);
 uint32_t measurement_timer = 0;
 uint32_t espnow_timer = 0;
 float alarm_values[12] = {1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9};
-float measurements[12] = { -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1};
+float measurements[12] = {  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0};
 bool is_alarm = false;
 uint8_t alarm_reason = -1;
 uint32_t last_alarm_time = 0;
+uint32_t last_alarm_times[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //////////////// DS3231 ////////////////
 String ds3231_curr_date;
 String ds3231_curr_time;
 const char daysOfTheWeek[7][4] = {"Paz", "Pzt", "Sal", "Car", "Per", "Cum", "Cts"};
 const char monthsOfTheYear[13][4] = {"N/A", "Oca", "Sub", "Mar", "Nis", "May", "Haz", "Tem", "Agu", "Eyl", "Eki", "Kas", "Ara"};
 //////////////// ENS160 ////////////////
-uint16_t ens160_eCO2 = -1;
-uint16_t ens160_tVOC = -1;
-uint8_t  ens160_AQI = -1;
+uint16_t ens160_eCO2 = 0;
+uint16_t ens160_tVOC = 0;
+uint8_t  ens160_AQI  = 0;
 uint8_t  ens160_flag;
 //////////////// ENS210 ////////////////
-float ens210_temperature = -1;
-float ens210_humidity = -1;
+float ens210_temperature = 0;
+float ens210_humidity    = 0;
 /////////////// MPU6050 ////////////////
 uint8_t mpu6050_in_motion;
 /////////////// SD Card ////////////////
@@ -127,27 +128,27 @@ float mq131_O3;
 /////////////// MICS6814 ///////////////
 typedef enum mics6814_channel {CH_NH3, CH_RED, CH_OX} mics6814_channel_t;
 typedef enum mics6814_gas {CO, NO2, NH3, C3H8, C4H10, CH4, H2, C2H5OH} mics6814_gas_t;
-uint16_t mics6814_NH3_base_R;
-uint16_t mics6814_RED_base_R;
-uint16_t mics6814_OX_base_R;
-float mics6814_NH3 = -1;
-float mics6814_CO = -1;
-float mics6814_NO2 = -1;
+uint16_t mics6814_NH3_base_R = 12691;
+uint16_t mics6814_RED_base_R = 19975;
+uint16_t mics6814_OX_base_R  = 7941;
+float mics6814_NH3 = 0;
+float mics6814_CO  = 0;
+float mics6814_NO2 = 0;
 /////////////// PMS7003 ////////////////
-uint16_t pms7003_PM1   = -1;
-uint16_t pms7003_PM2p5 = -1;
-uint16_t pms7003_PM10  = -1;
-uint16_t pms7003_N0p3  = -1;
-uint16_t pms7003_N0p5  = -1;
-uint16_t pms7003_N1    = -1;
-uint16_t pms7003_N2p5  = -1;
-uint16_t pms7003_N5    = -1;
-uint16_t pms7003_N10   = -1;
+uint16_t pms7003_PM1   = 0;
+uint16_t pms7003_PM2p5 = 0;
+uint16_t pms7003_PM10  = 0;
+uint16_t pms7003_N0p3  = 0;
+uint16_t pms7003_N0p5  = 0;
+uint16_t pms7003_N1    = 0;
+uint16_t pms7003_N2p5  = 0;
+uint16_t pms7003_N5    = 0;
+uint16_t pms7003_N10   = 0;
 uint32_t pms7003_last_read = -1;
 //////////////// NEO6M /////////////////
-float neo6m_lat = -1;
-float neo6m_lng = -1;
-float neo6m_alt = -1;
+float neo6m_lat = 0;
+float neo6m_lng = 0;
+float neo6m_alt = 0;
 /////////////// BUTTONS ////////////////
 uint8_t button_record = 0;
 uint8_t button_backup = 0;
@@ -176,7 +177,6 @@ void setup() {
   
   nextion_init();
 
-  //ds3231_init();
   ens210_init();
   ens160_init();
   mpu6050_init();
@@ -195,9 +195,6 @@ void setup() {
 void loop() {
   if (millis() - measurement_timer > 5000) {
     measurement_timer = millis();
-    //ds3231_curr_date="Jun 14, Sat";
-    //ds3231_curr_time=millis();
-    //ds3231_read();
     ens160_read();
     ens210_read();
     mpu6050_read();
@@ -229,18 +226,18 @@ void loop() {
 }
 
 void update_measurements (void) {
-  measurements[0]  = ens210_temperature;
-  measurements[1]  = ens210_humidity;
-  measurements[2]  = ens160_eCO2;
-  measurements[3]  = ens160_tVOC;
-  measurements[4]  = ens160_AQI;
-  measurements[5]  = mq131_O3;
-  measurements[6]  = mics6814_NH3;
-  measurements[7]  = mics6814_NO2;
-  measurements[8]  = mics6814_CO;
-  measurements[9]  = pms7003_PM1;
-  measurements[10] = pms7003_PM2p5;
-  measurements[11] = pms7003_PM10;
+  measurements[0]  = 0.9 * measurements[0]  + 0.1 * ens210_temperature;
+  measurements[1]  = 0.8 * measurements[1]  + 0.2 * ens210_humidity;
+  measurements[2]  = 0.8 * measurements[2]  + 0.2 * ens160_eCO2;
+  measurements[3]  = 0.8 * measurements[3]  + 0.2 * ens160_tVOC;
+  measurements[4]  = 0.0 * measurements[4]  + 1.0 * ens160_AQI;
+  measurements[5]  = 0.5 * measurements[5]  + 0.5 * mq131_O3;
+  measurements[6]  = 0.8 * measurements[6]  + 0.2 * mics6814_NH3;
+  measurements[7]  = 0.8 * measurements[7]  + 0.2 * mics6814_NO2;
+  measurements[8]  = 0.8 * measurements[8]  + 0.2 * mics6814_CO;
+  measurements[9]  = 0.8 * measurements[9]  + 0.2 * pms7003_PM1;
+  measurements[10] = 0.8 * measurements[10] + 0.2 * pms7003_PM2p5;
+  measurements[11] = 0.8 * measurements[11] + 0.2 * pms7003_PM10;
 }
 
 void check_alarms (void) {
@@ -248,6 +245,7 @@ void check_alarms (void) {
   alarm_reason = -1;
   for (int i = 0; i < 12; i++) {
     if (!std::isnormal(measurements[i])) continue;
+    if (millis() - last_alarm_times[i] < 10000) continue;
     if (measurements[i] > alarm_values[i]) {
       handle_alarm(i);
       return;
@@ -259,6 +257,7 @@ void handle_alarm (uint8_t gas) {
   is_alarm = true;
   alarm_reason = gas;
   last_alarm_time = millis();
+  last_alarm_times[alarm_reason] = millis();
 
   Serial.print("reason " + nextion_gas_names[alarm_reason]);
   Serial.print(", alarm ");

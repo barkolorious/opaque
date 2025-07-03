@@ -176,7 +176,6 @@ void setup() {
   
   nextion_init();
 
-  //ds3231_init();
   ens210_init();
   ens160_init();
   mpu6050_init();
@@ -195,9 +194,6 @@ void setup() {
 void loop() {
   if (millis() - measurement_timer > 5000) {
     measurement_timer = millis();
-    //ds3231_curr_date="Jun 14, Sat";
-    //ds3231_curr_time=millis();
-    //ds3231_read();
     ens160_read();
     ens210_read();
     mpu6050_read();
@@ -229,18 +225,18 @@ void loop() {
 }
 
 void update_measurements (void) {
-  measurements[0]  = ens210_temperature;
-  measurements[1]  = ens210_humidity;
-  measurements[2]  = ens160_eCO2;
-  measurements[3]  = ens160_tVOC;
-  measurements[4]  = ens160_AQI;
-  measurements[5]  = mq131_O3;
-  measurements[6]  = mics6814_NH3;
-  measurements[7]  = mics6814_NO2;
-  measurements[8]  = mics6814_CO;
-  measurements[9]  = pms7003_PM1;
-  measurements[10] = pms7003_PM2p5;
-  measurements[11] = pms7003_PM10;
+  measurements[0]  = 0.9 * measurements[0]  + 0.1 * ens210_temperature;
+  measurements[1]  = 0.8 * measurements[1]  + 0.2 * ens210_humidity;
+  measurements[2]  = 0.8 * measurements[2]  + 0.2 * ens160_eCO2;
+  measurements[3]  = 0.8 * measurements[3]  + 0.2 * ens160_tVOC;
+  measurements[4]  = 0.0 * measurements[4]  + 1.0 * ens160_AQI;
+  measurements[5]  = 0.8 * measurements[5]  + 0.2 * mq131_O3;
+  measurements[6]  = 0.8 * measurements[6]  + 0.2 * mics6814_NH3;
+  measurements[7]  = 0.8 * measurements[7]  + 0.2 * mics6814_NO2;
+  measurements[8]  = 0.8 * measurements[8]  + 0.2 * mics6814_CO;
+  measurements[9]  = 0.8 * measurements[9]  + 0.2 * pms7003_PM1;
+  measurements[10] = 0.8 * measurements[10] + 0.2 * pms7003_PM2p5;
+  measurements[11] = 0.8 * measurements[11] + 0.2 * pms7003_PM10;
 }
 
 void check_alarms (void) {
