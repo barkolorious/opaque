@@ -29,7 +29,7 @@ void nextion_update_measurements (void) {
 }
 
 void nextion_update_battery (void) {
-  uint8_t battery_level = 150;
+  uint8_t battery_level = 78;
   uint8_t battery_image = 0;
   if      (battery_level <= 10)  battery_image = 1;
   else if (battery_level <= 40)  battery_image = 2;

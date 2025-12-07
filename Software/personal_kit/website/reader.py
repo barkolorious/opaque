@@ -7,7 +7,7 @@ import time
 app = Flask(__name__)
 CORS(app)
 
-ser = serial.Serial('COM8', 115200, timeout=1)  # Replace with your port
+ser = serial.Serial('COM4', 115200, timeout=1)  # Replace with your port
 latest_data = {'data': '', 'timestamp': None}
 
 def read_serial():
